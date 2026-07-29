@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { runEvidenceAgent } from "../lib/client-agent";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 type Metrics = {
   obliqueRatio: number; alternationRate: number; longestToneRun: number;
   meanLineLength: number; lineLengthSd: number; lineLengthCv: number;
@@ -63,7 +65,7 @@ export default function Home() {
   const [slide, setSlide] = useState(0);
   const [mobileNav, setMobileNav] = useState(false);
 
-  useEffect(() => { fetch("/data/research.json").then((r) => r.json()).then(setData); }, []);
+  useEffect(() => { fetch(`${basePath}/data/research.json`).then((r) => r.json()).then(setData); }, []);
   useEffect(() => {
     if (!data) return;
     const first = data.curves.find((x) => x.primary && x.scene === scene);
@@ -98,7 +100,7 @@ export default function Home() {
     if (!nextQuery.trim() || !data) return;
     setLoading(true); setReply(null); setQuery(nextQuery);
     try {
-      const text = await fetch("/data/text.json").then((response) => response.json());
+      const text = await fetch(`${basePath}/data/text.json`).then((response) => response.json());
       setReply(runEvidenceAgent(nextQuery, data, text));
     } finally { setLoading(false); }
   }
