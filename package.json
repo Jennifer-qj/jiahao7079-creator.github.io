@@ -4,19 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "package": "opennextjs-cloudflare build"
+    "build": "next build && node scripts/finalize-static.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
     "next": "^15.5.7",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "recharts": "^2.15.4"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.14.8",
+    "@types/node": "20.17.6",
     "@types/react": "19.2.17",
     "typescript": "^5.9.3"
   }

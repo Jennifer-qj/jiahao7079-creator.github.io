@@ -6,10 +6,7 @@ import {
   FlaskConical, GitCompareArrows, Menu, MessageSquareText, Network, Play,
   Search, Sparkles, X,
 } from "lucide-react";
-import {
-  Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer,
-  Tooltip, XAxis, YAxis,
-} from "recharts";
+import { runEvidenceAgent } from "../lib/client-agent";
 
 type Metrics = {
   obliqueRatio: number; alternationRate: number; longestToneRun: number;
@@ -98,11 +95,11 @@ export default function Home() {
   }, [data]);
 
   async function askAgent(nextQuery = query) {
-    if (!nextQuery.trim()) return;
+    if (!nextQuery.trim() || !data) return;
     setLoading(true); setReply(null); setQuery(nextQuery);
     try {
-      const response = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: nextQuery }) });
-      setReply(await response.json());
+      const text = await fetch("/data/text.json").then((response) => response.json());
+      setReply(runEvidenceAgent(nextQuery, data, text));
     } finally { setLoading(false); }
   }
 
@@ -168,18 +165,7 @@ export default function Home() {
               <Metric label="句长变异" value={fmt(summary.metrics.lineLengthCv)} note="伸缩幅度" />
               <Metric label="平均换韵" value={fmt(summary.metrics.rhymeChanges)} note="语势转折" />
             </div>
-            <div className="chart-wrap">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.sceneSummaries}>
-                  <CartesianGrid stroke="#ded8cb" vertical={false} />
-                  <XAxis dataKey="scene" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} domain={[0, 0.7]} />
-                  <Tooltip contentStyle={{ borderRadius: 0, borderColor: "#c9c0b1" }} />
-                  <Line type="monotone" dataKey="metrics.lineLengthCv" name="句长变异" stroke="#9b2c2c" strokeWidth={3} dot={{ fill: "#9b2c2c" }} />
-                  <Line type="monotone" dataKey="metrics.alternationRate" name="平仄交替率" stroke="#2f6658" strokeWidth={2} dot={{ fill: "#2f6658" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="chart-wrap"><SceneLinesChart data={data.sceneSummaries} /></div>
             <div className="chart-caption"><GitCompareArrows size={15} /> 八个场景的形式轨迹，可作为杜丽娘情感历程的叙事框架。</div>
           </div>
           <div className="panel curve-list">
@@ -214,18 +200,7 @@ export default function Home() {
         <div className="narrative-grid">
           <article className="panel journey">
             <div className="panel-title"><div><span>B · 情感历程</span><h3>从惊梦到圆驾</h3></div></div>
-            <div className="journey-chart">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.sceneSummaries}>
-                  <CartesianGrid stroke="#e1dbcf" vertical={false} />
-                  <XAxis dataKey="scene" axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip />
-                  <Bar dataKey="metrics.lineLengthCv" name="句长变异" fill="#9b2c2c" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="metrics.rhymeChanges" name="平均换韵" fill="#d2a85d" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="journey-chart"><JourneyBars data={data.sceneSummaries} /></div>
             <p className="soft-note">这条轨迹是“重读入口”，不是单一因果证明；点击上方场景可回到曲牌级证据。</p>
           </article>
           <article className="panel relations">
@@ -297,4 +272,37 @@ export default function Home() {
 
 function Metric({ label, value, note }: { label: string; value: string; note: string }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>;
+}
+
+function SceneLinesChart({ data }: { data: SceneSummary[] }) {
+  const x = (i: number) => 48 + i * 94;
+  const y = (value: number) => 205 - value / .7 * 170;
+  const line = (key: "lineLengthCv" | "alternationRate") => data.map((item, i) => `${x(i)},${y(item.metrics[key])}`).join(" ");
+  return <svg className="native-chart" viewBox="0 0 760 240" role="img" aria-label="八个场景的句长变异与平仄交替率">
+    {[.2, .4, .6].map((v) => <g key={v}><line x1="38" x2="735" y1={y(v)} y2={y(v)} /><text x="7" y={y(v) + 4}>{v}</text></g>)}
+    <polyline className="chart-red" points={line("lineLengthCv")} />
+    <polyline className="chart-jade" points={line("alternationRate")} />
+    {data.map((item, i) => <g key={item.scene}>
+      <circle className="dot-red" cx={x(i)} cy={y(item.metrics.lineLengthCv)} r="4"><title>{item.scene} 句长变异 {item.metrics.lineLengthCv}</title></circle>
+      <circle className="dot-jade" cx={x(i)} cy={y(item.metrics.alternationRate)} r="3"><title>{item.scene} 交替率 {item.metrics.alternationRate}</title></circle>
+      <text className="scene-label" x={x(i)} y="230" textAnchor="middle">{item.scene}</text>
+    </g>)}
+  </svg>;
+}
+
+function JourneyBars({ data }: { data: SceneSummary[] }) {
+  const x = (i: number) => 42 + i * 78;
+  const maxRhyme = Math.max(...data.map((item) => item.metrics.rhymeChanges));
+  return <svg className="native-chart" viewBox="0 0 660 260" role="img" aria-label="八个场景的句长变异与平均换韵">
+    {[60, 120, 180, 230].map((v) => <line key={v} x1="25" x2="640" y1={v} y2={v} />)}
+    {data.map((item, i) => {
+      const cvHeight = item.metrics.lineLengthCv / .7 * 185;
+      const rhymeHeight = item.metrics.rhymeChanges / maxRhyme * 185;
+      return <g key={item.scene}>
+        <rect className="bar-red" x={x(i)} y={225 - cvHeight} width="18" height={cvHeight}><title>{item.scene} 句长变异 {item.metrics.lineLengthCv}</title></rect>
+        <rect className="bar-gold" x={x(i) + 20} y={225 - rhymeHeight} width="18" height={rhymeHeight}><title>{item.scene} 平均换韵 {item.metrics.rhymeChanges}</title></rect>
+        <text className="scene-label" x={x(i) + 18} y="248" textAnchor="middle">{item.scene}</text>
+      </g>;
+    })}
+  </svg>;
 }

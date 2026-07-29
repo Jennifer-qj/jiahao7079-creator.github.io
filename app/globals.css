@@ -84,6 +84,16 @@ em { color: var(--red); font-style: normal; }
 .metric span, .metric small { display: block; color: var(--muted); font-size: 10px; }
 .metric strong { display: block; margin: 7px 0; font: 500 25px "Noto Serif SC", serif; color: var(--red-dark); }
 .chart-wrap { height: 250px; margin-top: 28px; font-size: 11px; }
+.native-chart { width: 100%; height: 100%; overflow: visible; }
+.native-chart line { stroke: #ded8cb; stroke-width: 1; }
+.native-chart text { fill: #776f63; font-size: 10px; }
+.native-chart .scene-label { font-size: 11px; }
+.native-chart polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.native-chart .chart-red { stroke: var(--red); stroke-width: 3; }
+.native-chart .chart-jade { stroke: var(--jade); stroke-width: 2; }
+.native-chart .dot-red, .native-chart .bar-red { fill: var(--red); }
+.native-chart .dot-jade { fill: var(--jade); }
+.native-chart .bar-gold { fill: var(--gold); }
 .chart-caption { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
 .curve-list { padding: 27px 0 0; overflow: hidden; }
 .curve-list .panel-title { padding: 0 24px; }
