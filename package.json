@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/finalize-static.mjs"
+    "build": "next build && node scripts/finalize-static.mjs",
+    "test:worker": "node scripts/test-worker.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

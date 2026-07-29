@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quqingzheng-agent",
+  "main": "server/deepseek-worker.mjs",
+  "compatibility_date": "2026-07-29",
+  "workers_dev": true,
+  "vars": {
+    "DEEPSEEK_MODEL": "deepseek-v4-flash"
+  },
+  "secrets": {
+    "required": ["DEEPSEEK_API_KEY"]
+  }
+}
