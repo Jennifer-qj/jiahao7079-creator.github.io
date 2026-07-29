@@ -42,10 +42,11 @@ const mechanismCards = [
 ];
 
 const presentationSlides = [
-  { kicker: "研究问题", title: "格律形式，如何参与“至情”表达？", body: "我没有让模型替我解释《牡丹亭》，而是把80支人工核验曲词转成可比较的形式指标，再让智能体回到原文寻找证据。", foot: "主线 A：形式—情感机制｜补充 B：丽娘情感历程｜补充 C：人物关系" },
-  { kicker: "方法", title: "人工标注 × 可计算格律 × 可追溯原文", body: "每支曲同时保留平仄、句长、韵脚、人工“形式—情感”判断和词汇情感向量。程序只做规范化与派生计算，所有结论都能回到曲牌与原文片段。", foot: "80支曲 · 8个关键场景 · 55出原文 · 178条关系事件" },
-  { kicker: "发现", title: "形式不是情感的标签，而是情感的组织方式", body: "句式伸缩组织情感推进；平仄配置调节压力与回旋；换韵协同心理转折。三者共同把“情”从春心初动，推向死生跨越，再收束为礼法承认。", foot: "描述性证据，不把相关性包装成因果" },
-  { kicker: "成果", title: "“曲情证”研究智能体", body: "它不是泛泛聊天：会先判断问题，再调用曲牌度量、场景比较、原文检索或人物关系工具，最后给出带出处的回答。研究者可以追问、核对，也可以发现值得重读的曲词。", foot: "人文判断在前，模型综合在后；可复核，也可扩展" },
+  { kicker: "01 · 从材料出发", title: "我先有一批“读过”的数据。", body: "一部五十五出原文、八十支人工核验曲词、人物与关系事件，是模型工作的底座。程序没有替代我的阅读，而是把既有阅读整理成可检索、可比较的知识层。", foot: "Word原文 · Excel人工标注 · 80支曲 · 8个关键场景" },
+  { kicker: "02 · 提出人文问题", title: "格律形式，如何参与“至情”表达？", body: "主线不是判断某种格律等于某种情绪，而是观察句式伸缩、平仄压力和换韵转折怎样组织情感进程；杜丽娘历程与人物关系作为解释语境。", foot: "主线 A：形式—情感机制｜补充 B：丽娘历程｜补充 C：人物关系" },
+  { kicker: "03 · 构建智能体", title: "四层知识，三条问答路径。", body: "权威基础知识解决“杜丽娘是谁”；五十五出全文解决出处与语境；人工标注和计算指标解决专题研究。问题路由器让 DeepSeek 自动选择知识检索、原文检索或格律工具。", foot: "权威知识库 → 问题路由 → RAG/工具调用 → 带来源回答" },
+  { kicker: "04 · 形成发现", title: "形式不是情感标签，而是组织方式。", body: "句式伸缩控制铺陈与骤收，平仄配置调节压力与回旋，换韵协同心理和场景转折。弱全局相关提醒我们：结论必须回到曲牌、叙事位置和原文细读。", foot: "计算用于发现线索，人文判断负责解释；不把相关性包装成因果" },
+  { kicker: "05 · 完成转变", title: "文科生，也可以成为大模型架构师。", body: "架构不是只会写代码，而是能定义问题、设计数据结构、规定证据边界、测试回答质量，并把模型变成可用产品。我把人文判断放在系统最上游，也放在评测的最后一关。", foot: "问题定义 · 数据治理 · RAG与Agent · 评测 · 部署" },
 ];
 
 function metricLabel(key: string) {
@@ -53,6 +54,37 @@ function metricLabel(key: string) {
 }
 function fmt(value: number, percent = false) {
   return percent ? `${Math.round(value * 100)}%` : Number(value || 0).toFixed(2);
+}
+
+function inlineText(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((chunk, index) => chunk.startsWith("**") && chunk.endsWith("**")
+    ? <strong key={index}>{chunk.slice(2, -2)}</strong>
+    : <span key={index}>{chunk}</span>);
+}
+
+function FormattedAnswer({ text }: { text: string }) {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const blocks: React.ReactNode[] = [];
+  let list: string[] = [];
+  const flushList = () => {
+    if (!list.length) return;
+    blocks.push(<ul key={`list-${blocks.length}`}>{list.map((item, index) => <li key={index}>{inlineText(item)}</li>)}</ul>);
+    list = [];
+  };
+  lines.forEach((line) => {
+    if (/^[-—]{3,}$/.test(line)) return;
+    if (/^[-*]\s+/.test(line)) { list.push(line.replace(/^[-*]\s+/, "")); return; }
+    flushList();
+    if (/^#{1,3}\s+/.test(line)) {
+      blocks.push(<h4 key={`head-${blocks.length}`}>{inlineText(line.replace(/^#{1,3}\s+/, ""))}</h4>);
+    } else if (/^\|.+\|$/.test(line) && !/^-/.test(line.replace(/\|/g, "").trim())) {
+      blocks.push(<p className="answer-row" key={`row-${blocks.length}`}>{inlineText(line.split("|").filter(Boolean).join(" · "))}</p>);
+    } else {
+      blocks.push(<p key={`para-${blocks.length}`}>{inlineText(line)}</p>);
+    }
+  });
+  flushList();
+  return <div className="answer-text">{blocks}</div>;
 }
 
 export default function Home() {
@@ -133,13 +165,14 @@ export default function Home() {
         <a className="brand" href="#top"><span className="brand-mark">曲</span><span>曲情证<small>牡丹亭研究智能体</small></span></a>
         <button className="nav-menu" onClick={() => setMobileNav(!mobileNav)} aria-label="展开导航"><Menu /></button>
         <div className={`nav-links ${mobileNav ? "open" : ""}`}>
-          <a href="#finding">核心发现</a><a href="#evidence">证据台</a><a href="#agent">研究智能体</a><a href="#method">数据说明</a>
+          <a href="#foundation">数据与架构</a><a href="#finding">核心发现</a><a href="#agent">智能体</a><a href="#method">方法边界</a>
         </div>
         <button className="button ghost nav-present" onClick={() => { setSlide(0); setPresenting(true); }}><Play size={15} /> 两分钟汇报</button>
       </nav>
 
       <header className="hero" id="top">
         <div className="hero-grain" />
+        <div className="hero-painting" aria-hidden="true"><img src={`${basePath}/images/liniang-peony.png`} alt="" /></div>
         <div className="eyebrow"><span>数字人文 · 可解释大模型应用</span><span className="line" /></div>
         <h1>格律形式，如何参与<br /><em>“至情”</em>表达？</h1>
         <p className="hero-lead">以《牡丹亭》80支人工核验曲词为核心，把平仄、句式与韵脚变成可比较证据；再由研究智能体返回原文，完成“量化发现—细读解释—出处核验”的闭环。</p>
@@ -153,9 +186,26 @@ export default function Home() {
         <div className="hero-note"><BookOpen size={15} /> 人工判断在前，模型综合在后</div>
       </header>
 
+      <section className="section foundation" id="foundation">
+        <div className="section-heading">
+          <span className="section-index">01 / 数据与架构</span>
+          <h2>先把阅读变成<em>知识底座</em>，<br />再让模型工作。</h2>
+          <p>“通用”不等于让大模型自由发挥，而是为不同问题准备不同层级的材料与工具。</p>
+        </div>
+        <div className="knowledge-layers">
+          <article><span>Ⅰ</span><h3>权威基础知识</h3><p>作者、人物、情节、昆曲、思想史与传播；来源于非遗机构、高校和学术论文。</p><small>回答“杜丽娘是谁”等通识问题</small></article>
+          <article><span>Ⅱ</span><h3>五十五出全文</h3><p>保留出目与文本上下文，可检索人物、名句、唱词及具体情节。</p><small>回答出处与原文问题</small></article>
+          <article><span>Ⅲ</span><h3>人工核验曲词</h3><p>八十支曲的平仄、句长、韵脚和“形式—情感”解释，均可回到原始记录。</p><small>回答格律研究问题</small></article>
+          <article><span>Ⅳ</span><h3>关系与计算层</h3><p>人物事件、场景比较与派生指标，让跨场景观察保持可追溯。</p><small>提供比较与细读线索</small></article>
+        </div>
+        <div className="architecture-flow">
+          <strong>用户问题</strong><i>→</i><span>问题路由</span><i>→</i><span>知识／原文／格律工具</span><i>→</i><span>DeepSeek 综合</span><i>→</i><strong>带来源回答</strong>
+        </div>
+      </section>
+
       <section className="section finding" id="finding">
         <div className="section-heading">
-          <span className="section-index">01 / 核心发现</span>
+          <span className="section-index">02 / 核心发现</span>
           <h2>“至情”不只被写出来，<br />也被<em>组织</em>出来。</h2>
           <p>这里不把某一种格律机械对应某一种情绪，而是观察形式如何控制情感的速度、压力和转向。</p>
         </div>
@@ -171,7 +221,7 @@ export default function Home() {
 
       <section className="section evidence" id="evidence">
         <div className="section-heading compact">
-          <span className="section-index">02 / 曲词证据台</span>
+          <span className="section-index">03 / 曲词证据台</span>
           <h2>先看全局，再回到一支曲。</h2>
           <p>所有指标由人工标注的平仄、句式与韵脚派生；点击曲牌即可核对原始序列与人工解释。</p>
         </div>
@@ -215,7 +265,7 @@ export default function Home() {
 
       <section className="section narrative">
         <div className="section-heading compact">
-          <span className="section-index">03 / 补充叙事</span>
+          <span className="section-index">04 / 补充叙事</span>
           <h2>用形式轨迹重读杜丽娘。</h2>
           <p>人物历程与关系网络不另起炉灶，而是帮助解释形式为何在此刻发生变化。</p>
         </div>
@@ -238,22 +288,22 @@ export default function Home() {
 
       <section className="section agent-section" id="agent">
         <div className="agent-intro">
-          <span className="section-index">04 / 研究问答</span>
-          <h2>从一个问题出发，<br />回到<em>曲词与原文</em>。</h2>
-          <p>这里不是通用聊天框。每次回答都先在人工标注、格律指标、人物事件与五十五出原文中寻找材料，再区分“文本事实”“计算观察”和“研究解释”。</p>
+          <span className="section-index">05 / 通用知识与研究问答</span>
+          <h2>既能讲清人物与情节，<br />也能回到<em>曲词与原文</em>。</h2>
+          <p>智能体会判断问题类型：通识问题自然讲解，出处问题检索全文，格律问题调用人工标注与计算工具。不同问题使用不同证据规则。</p>
           <div className="research-contract">
-            <article><span>01</span><strong>先找材料</strong><small>不凭印象补写剧情</small></article>
-            <article><span>02</span><strong>再作解释</strong><small>事实、指标与判断分层</small></article>
-            <article><span>03</span><strong>保留出处</strong><small>每条证据可回到原表</small></article>
+            <article><span>01</span><strong>先分问题</strong><small>通识、原文、关系或研究</small></article>
+            <article><span>02</span><strong>再找材料</strong><small>权威知识、全文或项目数据</small></article>
+            <article><span>03</span><strong>保留边界</strong><small>指标不冒充因果</small></article>
           </div>
-          <div className="tool-chips"><span><Search />原文</span><span><FlaskConical />格律</span><span><GitCompareArrows />场景</span><span><Network />人物</span></div>
+          <div className="tool-chips"><span><BookOpen />知识</span><span><Search />原文</span><span><FlaskConical />格律</span><span><GitCompareArrows />场景</span><span><Network />人物</span></div>
         </div>
         <div className="agent-console">
           <div className="console-top">
             <div><span className="console-kicker">曲情问答</span><strong>《牡丹亭》研究助手</strong></div>
             <small><i /> {agentApiUrl ? "模型服务已连接" : "本地证据模式"}</small>
           </div>
-          <div className="agent-prompt-label">可以从人物、情节、曲牌、格律或研究解释开始</div>
+          <div className="agent-prompt-label">可以问“杜丽娘是谁”，也可以追问一支曲怎样组织情感</div>
           <div className="suggestions">
             {["杜丽娘是谁？请结合她的情感历程回答", "比较“惊梦”和“回生”的形式差异", "哪几支曲的句式伸缩最明显？", "如何证明格律参与了“至情”表达？"].map((text) => <button key={text} onClick={() => askAgent(text)}>{text}</button>)}
           </div>
@@ -262,8 +312,8 @@ export default function Home() {
             {!reply && !loading && <div className="answer-empty"><BookOpen /><strong>等待一个值得细读的问题</strong><p>回答会区分结论、依据与解释边界，并列出实际使用的材料。</p></div>}
             {loading && <div className="thinking"><span /><span /><span /> 正在检索人物、曲牌与原文</div>}
             {reply && <>
-              <div className="answer-mode"><span>{reply.mode.startsWith("llm") ? "大模型＋研究工具" : "本地证据模式"}</span><span>{reply.citations.length} 条材料</span></div>
-              <div className="answer-text">{reply.answer.split("\n").filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}</div>
+              <div className="answer-mode"><span>{reply.mode.includes("general") ? "通识知识＋权威来源" : reply.mode.startsWith("llm") ? "大模型＋研究工具" : "本地证据模式"}</span><span>{reply.citations.length} 条材料</span></div>
+              <FormattedAnswer text={reply.answer} />
               <details className="tool-trace"><summary>本次回答如何形成</summary>{reply.tools.map((tool) => <div key={tool.name}><strong>{tool.name}</strong><span>{tool.detail}</span></div>)}</details>
               <div className="citation-list">{reply.citations.map((citation) => <article key={citation.id}><span>{citation.id}</span><div><strong>{citation.label}</strong><p>{citation.excerpt}</p></div></article>)}</div>
             </>}
@@ -272,7 +322,7 @@ export default function Home() {
       </section>
 
       <section className="section method" id="method">
-        <div className="section-heading compact"><span className="section-index">05 / 数据与边界</span><h2>优秀，不靠“像真的”。</h2><p>把人工、程序与模型各自做了什么说清楚，本身就是数字人文成果的一部分。</p></div>
+        <div className="section-heading compact"><span className="section-index">06 / 方法与边界</span><h2>优秀，不靠“像真的”。</h2><p>把人工、程序与模型各自做了什么说清楚，本身就是数字人文成果的一部分。</p></div>
         <div className="method-grid">
           {data.meta.provenance.map((item, i) => <article key={item.dataset}><span>0{i + 1}</span><h3>{item.dataset}</h3><p>{item.source}</p><small>{item.method}</small></article>)}
           <article className="boundary"><CircleHelp /><h3>解释边界</h3><p>当前结果是描述性探索与计算辅助细读，不把统计相关直接写成历史因果；版本书目信息仍需核验。</p></article>

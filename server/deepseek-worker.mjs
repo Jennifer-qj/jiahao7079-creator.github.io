@@ -1,8 +1,9 @@
 import research from "../public/data/research.json" with { type: "json" };
 import textData from "../public/data/text.json" with { type: "json" };
+import knowledgeData from "../public/data/knowledge.json" with { type: "json" };
 import { createResearchTools, RESEARCH_TOOL_DEFINITIONS } from "../lib/research-tools.mjs";
 
-const tools = createResearchTools(research, textData);
+const tools = createResearchTools(research, textData, knowledgeData);
 const recentRequests = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
 const REQUESTS_PER_WINDOW = 12;
@@ -13,25 +14,47 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:3000",
 ]);
 
-const SYSTEM_PROMPT = `你是“曲情证”，一名专门研究汤显祖《牡丹亭》的数字人文研究助手。
+const SYSTEM_PROMPT = `你是“曲情证”，一名面向普通读者与研究者的《牡丹亭还魂记》通用型知识与研究助手。
 
-你的任务不是泛泛介绍作品，而是用本项目的人工标注数据和原文回答问题。你可以调用：
-1. 人物档案；
-2. 五十五出原文检索；
-3. 八十支人工核验曲词的格律、句长、韵脚及“形式—情感”解释；
-4. 场景比较；
-5. 人物关系事件。
+你有四层可追溯材料：
+1. 权威机构与学术论文整理的作品、作者、人物、昆曲、思想史与传播基础知识；
+2. 《牡丹亭》五十五出全文；
+3. 本项目人工核验的八十支曲词格律、句长、韵脚与“形式—情感”解释；
+4. 人物关系、场景比较和计算指标。
 
-回答规则：
-- 第一轮必须调用至少一个工具；涉及解释时，优先组合两种证据。
-- 只根据工具返回的证据陈述项目内事实，不编造曲牌、原文、数字或人物关系。
-- 原文引用务必简短，并注明出目；格律分析注明场景、曲牌和关键指标。
-- 清楚区分“数据事实”“人工标注解释”和“你的综合推断”。
-- 形式指标只能作为细读线索，不能单独证明情感或因果。
-- 工具没有明确提供排名时，不得声称某指标“最高”“最低”或“全剧第一”。
-- 若证据不足，直接说明缺口，并建议下一步查什么。
-- 默认用清楚、自然的中文回答，先给结论，再给2—4条证据，最后用一句“证据边界”收束。
-- 不要声称自己经过微调或预训练；本系统的提升来自提示词工程、工具调用、RAG和评测。`;
+先判断问题属于“通识”“原文”“人物关系”还是“专题研究”，再选工具。第一轮必须使用工具。
+
+表达规则：
+- 通识问题要像一位熟悉作品的老师自然作答：先直接回答“是什么/是谁/为什么”，再补充必要背景。不要强行写“数据事实”“项目人物档案”“证据边界”，不要为了显示技术而堆表格或小标题。
+- 原文问题要给出简短引文并标明出目；不编造原文。
+- 专题研究问题才需要明确区分人工标注、计算观察与综合解释，并说明方法边界。
+- 有争议的解释要呈现主要观点差异，不把一种读法说成唯一结论。
+- 形式指标只能作为细读线索，不能单独证明情感或因果；工具未提供排名时，不得声称“全剧最高/最低”。
+- 语言清楚、连贯、克制，优先用短段落和少量要点。除非比较确有必要，不输出 Markdown 表格。
+- 若材料不足，具体说明缺口，不用空泛的免责声明。
+- 不要声称经过微调或预训练；本系统的提升来自分层知识库、问题路由、提示词工程、工具调用、RAG与评测。`;
+
+const ROUTE_INSTRUCTIONS = {
+  general: "本轮是通识问题。优先检索基础知识，直接、自然地回答，不要展示数据库口吻，也不要强制分层或附加“证据边界”。",
+  text: "本轮是原文与出处问题。优先检索五十五出全文，引用要短，并准确标明出目；可补充必要的语境解释。",
+  relation: "本轮是人物与关系问题。先给人物/关系的自然概述，再用人物事件或基础知识补充关键情节，不要把事件清单机械抄成表格。",
+  research: "本轮是专题研究问题。组合曲词格律、场景、原文或关系证据，区分人工标注、计算观察与综合解释，并用一句话说明研究边界。",
+};
+
+function classifyQuestion(question) {
+  const text = String(question || "");
+  if (/平仄|格律|句式|句长|韵脚|押韵|换韵|曲牌|量化|指标|相关|形式.*情|场景比较|比较.*(?:惊梦|寻梦|闹殇|冥判|回生)/.test(text)) return "research";
+  if (/原文|出自|出处|哪一出|上下文|名句|唱词|台词|原句|全文/.test(text)) return "text";
+  if (/关系|相识|相遇|结为|夫妻|父女|母女|主仆|师生|谁和谁/.test(text)) return "relation";
+  return "general";
+}
+
+function preferredTool(route) {
+  if (route === "text") return "search_play_text";
+  if (route === "relation") return "get_relation_events";
+  if (route === "research") return "search_prosody";
+  return "search_background_knowledge";
+}
 
 function corsHeaders(request) {
   const origin = request.headers.get("origin") || "";
@@ -88,6 +111,7 @@ function safeArguments(raw) {
 
 function toolLabel(name, args) {
   const labels = {
+    search_background_knowledge: "基础知识",
     get_character_profile: "人物档案",
     search_play_text: "原文检索",
     search_prosody: "格律检索",
@@ -109,8 +133,10 @@ function collectCitations(value, output = []) {
       ? `${value.chapter}${value.tune ? ` · 【${value.tune}】` : ""}`
       : value.scene
         ? `${value.scene}${value.tune ? ` · 【${value.tune}】` : ""}`
-        : value.relation || value.event || value.evidence_id;
+        : value.title || value.relation || value.event || value.evidence_id;
     const excerpt = value.excerpt
+      || value.summary
+      || value.details
       || value.human_interpretation
       || value.event
       || value.relation
@@ -121,9 +147,14 @@ function collectCitations(value, output = []) {
   return output;
 }
 
-async function callDeepSeek(env, messages, firstRound, allowTools = true) {
+async function callDeepSeek(env, messages, firstRound, allowTools = true, firstTool = "") {
   const toolConfig = allowTools
-    ? { tools: deepSeekTools(), tool_choice: firstRound ? "required" : "auto" }
+    ? {
+        tools: deepSeekTools(),
+        tool_choice: firstRound && firstTool
+          ? { type: "function", function: { name: firstTool } }
+          : firstRound ? "required" : "auto",
+      }
     : {};
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -160,8 +191,9 @@ function answerNeedsRevision(answer, question) {
 }
 
 async function answerQuestion(env, question, history) {
+  const route = classifyQuestion(question);
   const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: `${SYSTEM_PROMPT}\n\n${ROUTE_INSTRUCTIONS[route]}` },
     ...compactHistory(history),
     { role: "user", content: question },
   ];
@@ -169,7 +201,7 @@ async function answerQuestion(env, question, history) {
   const rawCitations = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const payload = await callDeepSeek(env, messages, round === 0);
+    const payload = await callDeepSeek(env, messages, round === 0, true, preferredTool(route));
     const assistant = payload?.choices?.[0]?.message;
     if (!assistant) throw new Error("模型没有返回有效消息");
 
@@ -181,14 +213,16 @@ async function answerQuestion(env, question, history) {
         messages.pop();
         messages.push({
           role: "user",
-          content: `请重新回答最初的问题“${question}”。必须综合刚才的工具结果，先给结论，再给2—4条证据，最后说明证据边界；不要打招呼，不要再次邀请用户提问；删除所有未获工具明确排名支持的“最高、最低、全剧第一、高于任何、低于所有”等绝对判断。`,
+          content: route === "research"
+            ? `请重新回答最初的问题“${question}”。综合刚才的工具结果，先给结论，再给2—4条证据，最后说明研究边界；删除任何没有工具排名支持的绝对判断。`
+            : `请重新回答最初的问题“${question}”。综合刚才的材料，用自然、连贯的中文直接作答；不要说“数据事实”“项目人物档案”或“证据边界”，不要机械抄表，也不要再次邀请用户提问。`,
         });
         const synthesis = await callDeepSeek(env, messages, false, false);
         answer = synthesis?.choices?.[0]?.message?.content || answer;
       }
       return {
         answer: answer || "证据不足，暂时无法形成可靠回答。",
-        mode: "llm-deepseek-rag",
+        mode: `llm-deepseek-${route}-rag`,
         model: env.DEEPSEEK_MODEL || "deepseek-v4-flash",
         citations: [...new Map(rawCitations.map((item) => [item.id, item])).values()].slice(0, 10),
         tools: trace,
@@ -213,13 +247,15 @@ async function answerQuestion(env, question, history) {
 
   messages.push({
     role: "user",
-    content: "请停止继续调用工具，根据已经获得的证据给出简洁结论，并明确证据边界。",
+    content: route === "research"
+      ? "请停止继续调用工具，根据已经获得的证据给出简洁结论，并明确研究边界。"
+      : "请停止继续调用工具，根据已经获得的材料自然、直接地回答问题，不要输出数据库式字段清单。",
   });
   const payload = await callDeepSeek(env, messages, false);
   const answer = payload?.choices?.[0]?.message?.content;
   return {
     answer: answer || "已经检索到证据，但模型未能在限定轮次内完成综合。",
-    mode: "llm-deepseek-rag",
+    mode: `llm-deepseek-${route}-rag`,
     model: env.DEEPSEEK_MODEL || "deepseek-v4-flash",
     citations: [...new Map(rawCitations.map((item) => [item.id, item])).values()].slice(0, 10),
     tools: trace,
