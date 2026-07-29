@@ -6,8 +6,5 @@
   "workers_dev": true,
   "vars": {
     "DEEPSEEK_MODEL": "deepseek-v4-flash"
-  },
-  "secrets": {
-    "required": ["DEEPSEEK_API_KEY"]
   }
 }

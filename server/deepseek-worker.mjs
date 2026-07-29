@@ -28,6 +28,7 @@ const SYSTEM_PROMPT = `你是“曲情证”，一名专门研究汤显祖《牡
 - 原文引用务必简短，并注明出目；格律分析注明场景、曲牌和关键指标。
 - 清楚区分“数据事实”“人工标注解释”和“你的综合推断”。
 - 形式指标只能作为细读线索，不能单独证明情感或因果。
+- 工具没有明确提供排名时，不得声称某指标“最高”“最低”或“全剧第一”。
 - 若证据不足，直接说明缺口，并建议下一步查什么。
 - 默认用清楚、自然的中文回答，先给结论，再给2—4条证据，最后用一句“证据边界”收束。
 - 不要声称自己经过微调或预训练；本系统的提升来自提示词工程、工具调用、RAG和评测。`;
@@ -120,7 +121,10 @@ function collectCitations(value, output = []) {
   return output;
 }
 
-async function callDeepSeek(env, messages, firstRound) {
+async function callDeepSeek(env, messages, firstRound, allowTools = true) {
+  const toolConfig = allowTools
+    ? { tools: deepSeekTools(), tool_choice: firstRound ? "required" : "auto" }
+    : {};
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
@@ -130,8 +134,8 @@ async function callDeepSeek(env, messages, firstRound) {
     body: JSON.stringify({
       model: env.DEEPSEEK_MODEL || "deepseek-v4-flash",
       messages,
-      tools: deepSeekTools(),
-      tool_choice: firstRound ? "required" : "auto",
+      ...toolConfig,
+      thinking: { type: "disabled" },
       temperature: 0.2,
       max_tokens: 1400,
       stream: false,
@@ -143,6 +147,16 @@ async function callDeepSeek(env, messages, firstRound) {
     throw new Error(message);
   }
   return payload;
+}
+
+function answerNeedsRevision(answer, question) {
+  const text = String(answer || "").trim();
+  const entities = String(question).match(/[\u4e00-\u9fff]{2,4}/g) || [];
+  const hasQuestionAnchor = entities.some((item) => text.includes(item));
+  return text.length < 45
+    || /欢迎提问|请问您想了解什么|请提出您的问题|我可以帮您/.test(text)
+    || /全剧最高|全剧最低|全场景最高|全场景最低|最高之一|最低之一|高于.{0,12}任何|低于.{0,12}所有/.test(text)
+    || (!hasQuestionAnchor && text.length < 120);
 }
 
 async function answerQuestion(env, question, history) {
@@ -162,8 +176,18 @@ async function answerQuestion(env, question, history) {
     messages.push(assistant);
     const toolCalls = assistant.tool_calls || [];
     if (!toolCalls.length) {
+      let answer = assistant.content || "";
+      if (answerNeedsRevision(answer, question) && trace.length) {
+        messages.pop();
+        messages.push({
+          role: "user",
+          content: `请重新回答最初的问题“${question}”。必须综合刚才的工具结果，先给结论，再给2—4条证据，最后说明证据边界；不要打招呼，不要再次邀请用户提问；删除所有未获工具明确排名支持的“最高、最低、全剧第一、高于任何、低于所有”等绝对判断。`,
+        });
+        const synthesis = await callDeepSeek(env, messages, false, false);
+        answer = synthesis?.choices?.[0]?.message?.content || answer;
+      }
       return {
-        answer: assistant.content || "证据不足，暂时无法形成可靠回答。",
+        answer: answer || "证据不足，暂时无法形成可靠回答。",
         mode: "llm-deepseek-rag",
         model: env.DEEPSEEK_MODEL || "deepseek-v4-flash",
         citations: [...new Map(rawCitations.map((item) => [item.id, item])).values()].slice(0, 10),
@@ -171,12 +195,14 @@ async function answerQuestion(env, question, history) {
       };
     }
 
-    for (const call of toolCalls.slice(0, 4)) {
+    for (const [index, call] of toolCalls.entries()) {
       const name = call.function?.name || "";
       const args = safeArguments(call.function?.arguments);
-      const result = tools.execute(name, args);
+      const result = index < 8
+        ? tools.execute(name, args)
+        : { error: "本轮工具调用数量超过上限，请根据前八项结果完成回答。" };
       collectCitations(result, rawCitations);
-      trace.push({ name, detail: toolLabel(name, args) });
+      if (index < 8) trace.push({ name, detail: toolLabel(name, args) });
       messages.push({
         role: "tool",
         tool_call_id: call.id,

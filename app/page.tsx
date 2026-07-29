@@ -103,16 +103,20 @@ export default function Home() {
     setLoading(true); setReply(null); setQuery(nextQuery);
     try {
       if (agentApiUrl) {
-        const response = await fetch(`${agentApiUrl.replace(/\/$/, "")}/api/chat`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ question: nextQuery, history }),
-        });
-        if (!response.ok) throw new Error(`Agent API ${response.status}`);
-        const nextReply = await response.json() as AgentReply;
-        setReply(nextReply);
-        setHistory((items) => [...items, { role: "user" as const, content: nextQuery }, { role: "assistant" as const, content: nextReply.answer }].slice(-8));
-        return;
+        try {
+          const response = await fetch(`${agentApiUrl.replace(/\/$/, "")}/api/chat`, {
+            method: "POST",
+            headers: { "content-type": "application/json; charset=utf-8" },
+            body: JSON.stringify({ question: nextQuery, history }),
+          });
+          if (!response.ok) throw new Error(`Agent API ${response.status}`);
+          const nextReply = await response.json() as AgentReply;
+          setReply(nextReply);
+          setHistory((items) => [...items, { role: "user" as const, content: nextQuery }, { role: "assistant" as const, content: nextReply.answer }].slice(-8));
+          return;
+        } catch {
+          // Keep the presentation usable when the public model endpoint is unavailable.
+        }
       }
       const text = await fetch(`${basePath}/data/text.json`).then((response) => response.json());
       const nextReply = runEvidenceAgent(nextQuery, data, text);

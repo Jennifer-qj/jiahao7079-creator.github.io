@@ -53,6 +53,7 @@ jobs:
       - name: Build static site
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_AGENT_API_URL: "https://quqingzheng-agent.1723616293.workers.dev"
         run: pnpm build
 
       - name: Upload Pages artifact
