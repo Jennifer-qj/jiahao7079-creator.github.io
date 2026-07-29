@@ -15,7 +15,8 @@ await page.screenshot({ path: "qa/desktop-home.png", fullPage: false });
 await page.locator("#evidence").scrollIntoViewIfNeeded();
 await page.screenshot({ path: "qa/desktop-evidence.png", fullPage: false });
 await page.locator("#agent").scrollIntoViewIfNeeded();
-await page.getByRole("button", { name: "提问" }).click();
+await page.getByLabel("研究问题").fill("杜丽娘是谁？");
+await page.getByLabel("研究问题").press("Enter");
 await page.locator(".answer-mode").waitFor({ timeout: 15000 });
 await page.screenshot({ path: "qa/desktop-agent.png", fullPage: false });
 await page.getByRole("button", { name: /两分钟汇报/ }).first().click();
@@ -29,5 +30,11 @@ const overflow = await mobile.evaluate(() => ({
   body: document.body.scrollWidth,
   viewport: document.documentElement.clientWidth,
 }));
-console.log(JSON.stringify({ title: await page.title(), answerCitations: await page.locator(".citation-list article").count(), errors, overflow }, null, 2));
+console.log(JSON.stringify({
+  title: await page.title(),
+  answerCitations: await page.locator(".citation-list article").count(),
+  answerPreview: (await page.locator(".answer-text").innerText()).slice(0, 220),
+  errors,
+  overflow,
+}, null, 2));
 await browser.close();

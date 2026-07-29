@@ -1,0 +1,86 @@
+[
+  {
+    "id": "F01",
+    "category": "人物事实",
+    "question": "杜丽娘是谁？",
+    "must_include": ["杜宝", "柳梦梅", "至情"],
+    "required_tools": ["get_character_profile"]
+  },
+  {
+    "id": "F02",
+    "category": "人物事实",
+    "question": "春香与杜丽娘是什么关系？她在故事中有什么作用？",
+    "must_include": ["主仆", "春香", "杜丽娘"],
+    "required_tools": ["get_relation_events", "get_character_profile"]
+  },
+  {
+    "id": "F03",
+    "category": "情节追踪",
+    "question": "杜丽娘从死亡到还魂经历了哪些关键节点？",
+    "must_include": ["闹殇", "回生"],
+    "required_tools": ["get_character_profile", "get_relation_events"]
+  },
+  {
+    "id": "T01",
+    "category": "原文定位",
+    "question": "“良辰美景奈何天”出现在哪里？请结合上下文解释。",
+    "must_include": ["惊梦"],
+    "required_tools": ["search_play_text"]
+  },
+  {
+    "id": "T02",
+    "category": "原文定位",
+    "question": "杜丽娘临终前如何安排自己的画像和葬地？",
+    "must_include": ["梅树", "春容"],
+    "required_tools": ["search_play_text", "get_character_profile"]
+  },
+  {
+    "id": "P01",
+    "category": "格律检索",
+    "question": "惊梦中哪几支曲的句式伸缩最明显？",
+    "must_include": ["惊梦", "句长"],
+    "required_tools": ["search_prosody"]
+  },
+  {
+    "id": "P02",
+    "category": "格律比较",
+    "question": "比较惊梦与回生的句长变异、平仄交替和换韵差异。",
+    "must_include": ["惊梦", "回生"],
+    "required_tools": ["compare_scenes", "search_prosody"]
+  },
+  {
+    "id": "P03",
+    "category": "格律比较",
+    "question": "哪几支曲的平仄交替率最高？这些曲是否都表达相同情绪？",
+    "must_include": ["交替"],
+    "required_tools": ["search_prosody"]
+  },
+  {
+    "id": "R01",
+    "category": "研究解释",
+    "question": "格律形式如何参与《牡丹亭》的“至情”表达？请给出三组具体证据。",
+    "must_include": ["句式", "平仄", "韵"],
+    "required_tools": ["search_prosody", "search_play_text"]
+  },
+  {
+    "id": "R02",
+    "category": "研究解释",
+    "question": "能否根据现有数据证明格律变化导致了情感变化？",
+    "must_include": ["不能", "因果"],
+    "required_tools": ["compare_scenes", "search_prosody"]
+  },
+  {
+    "id": "R03",
+    "category": "反例意识",
+    "question": "有没有形式指标相近、但人工情感解释不同的曲词？",
+    "must_include": ["指标", "解释"],
+    "required_tools": ["search_prosody"]
+  },
+  {
+    "id": "M01",
+    "category": "多轮追问",
+    "question": "先比较惊梦和回生。然后只针对你刚才提到的第一支曲，补充原文证据。",
+    "must_include": ["原文"],
+    "required_tools": ["compare_scenes", "search_prosody", "search_play_text"]
+  }
+]

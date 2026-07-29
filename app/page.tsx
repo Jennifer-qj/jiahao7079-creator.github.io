@@ -9,6 +9,7 @@ import {
 import { runEvidenceAgent } from "../lib/client-agent";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const agentApiUrl = process.env.NEXT_PUBLIC_AGENT_API_URL || "";
 
 type Metrics = {
   obliqueRatio: number; alternationRate: number; longestToneRun: number;
@@ -60,6 +61,7 @@ export default function Home() {
   const [curveId, setCurveId] = useState("");
   const [query, setQuery] = useState("为什么说句式长短变化参与了杜丽娘的“至情”表达？");
   const [reply, setReply] = useState<AgentReply | null>(null);
+  const [history, setHistory] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -100,8 +102,22 @@ export default function Home() {
     if (!nextQuery.trim() || !data) return;
     setLoading(true); setReply(null); setQuery(nextQuery);
     try {
+      if (agentApiUrl) {
+        const response = await fetch(`${agentApiUrl.replace(/\/$/, "")}/api/chat`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ question: nextQuery, history }),
+        });
+        if (!response.ok) throw new Error(`Agent API ${response.status}`);
+        const nextReply = await response.json() as AgentReply;
+        setReply(nextReply);
+        setHistory((items) => [...items, { role: "user" as const, content: nextQuery }, { role: "assistant" as const, content: nextReply.answer }].slice(-8));
+        return;
+      }
       const text = await fetch(`${basePath}/data/text.json`).then((response) => response.json());
-      setReply(runEvidenceAgent(nextQuery, data, text));
+      const nextReply = runEvidenceAgent(nextQuery, data, text);
+      setReply(nextReply);
+      setHistory((items) => [...items, { role: "user" as const, content: nextQuery }, { role: "assistant" as const, content: nextReply.answer }].slice(-8));
     } finally { setLoading(false); }
   }
 
@@ -218,24 +234,33 @@ export default function Home() {
 
       <section className="section agent-section" id="agent">
         <div className="agent-intro">
-          <span className="section-index light">04 / 研究智能体</span>
-          <h2>不只回答，<br />还要告诉你<em>证据从哪来</em>。</h2>
-          <p>智能体会先识别任务，再调用曲牌度量、场景比较、原文检索或人物关系工具。即使没有外接大模型，也能给出基于证据的结构化回答。</p>
-          <div className="tool-chips"><span><Search />原文检索</span><span><FlaskConical />格律度量</span><span><GitCompareArrows />场景比较</span><span><Network />关系查询</span></div>
+          <span className="section-index">04 / 研究问答</span>
+          <h2>从一个问题出发，<br />回到<em>曲词与原文</em>。</h2>
+          <p>这里不是通用聊天框。每次回答都先在人工标注、格律指标、人物事件与五十五出原文中寻找材料，再区分“文本事实”“计算观察”和“研究解释”。</p>
+          <div className="research-contract">
+            <article><span>01</span><strong>先找材料</strong><small>不凭印象补写剧情</small></article>
+            <article><span>02</span><strong>再作解释</strong><small>事实、指标与判断分层</small></article>
+            <article><span>03</span><strong>保留出处</strong><small>每条证据可回到原表</small></article>
+          </div>
+          <div className="tool-chips"><span><Search />原文</span><span><FlaskConical />格律</span><span><GitCompareArrows />场景</span><span><Network />人物</span></div>
         </div>
         <div className="agent-console">
-          <div className="console-top"><span><i /> 证据型 Agent</span><small>RAG · TOOL USE · CITATION</small></div>
-          <div className="suggestions">
-            {["比较“惊梦”和“回生”的形式差异", "哪几支曲的句式伸缩最明显？", "杜丽娘与柳梦梅的关系如何推进？"].map((text) => <button key={text} onClick={() => askAgent(text)}>{text}</button>)}
+          <div className="console-top">
+            <div><span className="console-kicker">曲情问答</span><strong>《牡丹亭》研究助手</strong></div>
+            <small><i /> {agentApiUrl ? "模型服务已连接" : "本地证据模式"}</small>
           </div>
-          <div className="ask-box"><MessageSquareText size={19} /><textarea value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askAgent(); } }} /><button onClick={() => askAgent()} disabled={loading}>{loading ? "检索中…" : "提问"} <ArrowRight size={15} /></button></div>
+          <div className="agent-prompt-label">可以从人物、情节、曲牌、格律或研究解释开始</div>
+          <div className="suggestions">
+            {["杜丽娘是谁？请结合她的情感历程回答", "比较“惊梦”和“回生”的形式差异", "哪几支曲的句式伸缩最明显？", "如何证明格律参与了“至情”表达？"].map((text) => <button key={text} onClick={() => askAgent(text)}>{text}</button>)}
+          </div>
+          <div className="ask-box"><MessageSquareText size={18} /><textarea aria-label="研究问题" placeholder="例如：杜丽娘是谁？她的“至情”如何被格律组织？" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askAgent(); } }} /><button onClick={() => askAgent()} disabled={loading}>{loading ? "正在查找…" : "提交问题"} <ArrowRight size={15} /></button></div>
           <div className="agent-answer">
-            {!reply && !loading && <div className="answer-empty"><Sparkles /><p>输入一个研究问题。回答将附带工具轨迹与可核对出处。</p></div>}
-            {loading && <div className="thinking"><span /><span /><span /> 正在选择工具并检索证据</div>}
+            {!reply && !loading && <div className="answer-empty"><BookOpen /><strong>等待一个值得细读的问题</strong><p>回答会区分结论、依据与解释边界，并列出实际使用的材料。</p></div>}
+            {loading && <div className="thinking"><span /><span /><span /> 正在检索人物、曲牌与原文</div>}
             {reply && <>
-              <div className="answer-mode">{reply.mode === "llm" ? "大模型综合" : "本地证据综合"} · {reply.citations.length} 条引证</div>
+              <div className="answer-mode"><span>{reply.mode.startsWith("llm") ? "大模型＋研究工具" : "本地证据模式"}</span><span>{reply.citations.length} 条材料</span></div>
               <div className="answer-text">{reply.answer.split("\n").filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}</div>
-              <details className="tool-trace"><summary>查看 Agent 调用了什么</summary>{reply.tools.map((tool) => <div key={tool.name}><strong>{tool.name}</strong><span>{tool.detail}</span></div>)}</details>
+              <details className="tool-trace"><summary>本次回答如何形成</summary>{reply.tools.map((tool) => <div key={tool.name}><strong>{tool.name}</strong><span>{tool.detail}</span></div>)}</details>
               <div className="citation-list">{reply.citations.map((citation) => <article key={citation.id}><span>{citation.id}</span><div><strong>{citation.label}</strong><p>{citation.excerpt}</p></div></article>)}</div>
             </>}
           </div>
