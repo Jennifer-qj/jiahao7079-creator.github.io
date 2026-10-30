@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#10242d" />
+  <title>Tripmate · 一起去玩</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Tripmate 首页">
+        <span class="brand-mark">✦</span>
+        <span>tripmate</span>
+      </a>
+      <nav class="top-actions" aria-label="页面操作">
+        <button class="icon-button" id="shareBtn" title="复制共享链接" aria-label="复制共享链接">↗</button>
+        <button class="avatar" title="成员头像">林</button>
+      </nav>
+    </header>
+
+    <main id="top" class="page-wrap">
+      <section class="trip-hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="status-dot"></span> 共享旅行空间 · 2 位成员</div>
+          <input class="trip-title-input" id="tripTitle" value="我的旅行" aria-label="旅行标题" />
+          <p class="hero-note">两个人的周末清单</p>
+          <div class="trip-meta"><label>◷ <input id="tripDate" value="出发日期" aria-label="出发日期" /></label><label>⌖ <input id="tripPlace" value="目的地" aria-label="目的地" /></label></div>
+        </div>
+        <div class="hero-stamp">
+          <div class="stamp-number">68<span>%</span></div>
+          <div class="stamp-label">出发准备度</div>
+          <div class="stamp-line"><i style="width:68%"></i></div>
+          <small>还有 8 项待填写</small>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="main-column">
+          <div class="section-heading">
+            <div>
+              <p class="kicker">PACKING BOARD</p>
+              <h2>共享清单</h2>
+            </div>
+            <button class="primary-button" id="addItemBtn"><span>＋</span> 添加物品</button>
+          </div>
+
+          <div class="member-strip" id="memberStrip"><button class="member-chip active" data-member="all"><span class="member-avatar all">全</span><span>全部</span></button><button class="member-chip add-member-chip" id="addMemberBtn">＋ 添加成员</button></div>
+
+          <div class="filter-row" role="tablist" aria-label="清单筛选">
+            <button class="filter-tab active" data-filter="all">全部</button>
+            <button class="filter-tab" data-filter="待填写">待填写</button>
+            <button class="filter-tab" data-filter="我会带">我会带</button>
+            <button class="filter-tab" data-filter="你会带">你会带</button>
+            <button class="filter-tab" data-filter="待讨论">待讨论</button>
+          </div>
+
+          <div class="list-card" id="packingList"></div>
+
+          <div class="add-hint" id="addHint">
+            <span>＋</span><div><strong>继续完善共享清单</strong><small>可以继续添加物品，也可以新建一个分类。</small></div><button id="quickAddBtn">添加物品</button><button id="addCategoryBtn">新建分类</button>
+          </div>
+        </div>
+
+        <aside class="side-column">
+          <section class="side-card people-card">
+            <div class="card-title-row"><div><p class="kicker">THE CREW</p><h3>这趟一起去的人</h3></div><button class="more-btn" aria-label="更多成员">•••</button></div>
+            <div class="people-list" id="peopleList"><div class="empty-people">还没有成员，先添加同行的人吧</div></div><button class="outline-button" id="inviteBtn">＋ 邀请小伙伴</button>
+          </section>
+
+          <section class="side-card mini-progress">
+            <div class="card-title-row"><div><p class="kicker">AT A GLANCE</p><h3>准备得怎么样了</h3></div><span class="progress-emoji">☀</span></div>
+            <div class="big-progress"><strong id="progressPercent">68%</strong><span>已准备</span></div>
+            <div class="progress-bar"><i id="progressBar" style="width:68%"></i></div>
+            <div class="progress-detail"><span><i class="legend coral-bg"></i>已完成 <b id="doneCount">9</b></span><span><i class="legend gray-bg"></i>待确认 <b id="todoCount">9</b></span></div>
+          </section>
+
+          <section class="side-card future-card">
+            <div class="card-title-row"><div><p class="kicker">COMING NEXT</p><h3>接下来想一起做什么？</h3></div><span class="spark">✧</span></div>
+            <button class="future-item"><span class="future-icon route">⌁</span><span><strong>规划路线</strong><small>把想去的地方串起来</small></span><em>→</em></button>
+            <button class="future-item"><span class="future-icon stay">⌂</span><span><strong>住宿 & 订单</strong><small>票据、地址集中放</small></span><em>→</em></button>
+            <button class="future-item"><span class="future-icon budget">¥</span><span><strong>共同预算</strong><small>AA 也可以很轻松</small></span><em>→</em></button>
+            <div class="coming-note">这些模块会在下一版逐步开放</div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="footer"><span>tripmate / 空白行程</span><span>给每一次出发，少一点手忙脚乱。</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
+      <p class="kicker">NEW ITEM</p><h2 id="modalTitle">添加一件要带的东西</h2>
+      <p class="modal-subtitle">先记下来，添加后再由每个人填写自己的状态。</p>
+      <form id="itemForm">
+        <label>物品名称<input id="itemName" name="name" type="text" placeholder="比如：防晒霜" required /></label>
+        <label>从常用清单选择<select id="itemTemplate"><option value="">自己填写</option><option>身份证 / 学生证</option><option>手机充电器</option><option>充电宝</option><option>防晒霜</option><option>雨伞</option><option>纸巾 / 湿巾</option><option>常用药品</option><option>相机</option><option>水杯</option></select></label><label>归属分类<select id="itemCategory" name="category"><option>日常用品</option><option>电子设备</option><option>衣物</option><option>证件 & 票据</option><option>共同物品</option></select></label>
+        <div class="form-split"><label>备注（可选）<input id="itemOwner" name="owner" placeholder="比如：周周带双口充电头" /></label><label>初始状态<select id="itemMode" name="mode"><option>待决定</option><option>我带</option><option>你带</option></select></label></div>
+        <button class="primary-button full" type="submit">加入清单 <span>→</span></button>
+      </form>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
+
+
+
+<div class="decor-leaf">✦</div>
+
+
+
+
+
+
+
